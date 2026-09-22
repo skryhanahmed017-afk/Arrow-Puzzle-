@@ -3,91 +3,149 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Arrow Puzzle</title>
+<title>Tap Away Arrows</title>
 
 <style>
-*{box-sizing:border-box}
+*{
+  box-sizing:border-box;
+}
 
 body{
- margin:0;
- min-height:100vh;
- display:flex;
- justify-content:center;
- align-items:center;
- background:linear-gradient(135deg,#111827,#312e81);
- font-family:Arial,sans-serif;
- color:white;
+  margin:0;
+  min-height:100vh;
+  background:#ffffff;
+  font-family:Arial,sans-serif;
+  color:#17213d;
+  display:flex;
+  justify-content:center;
 }
 
 .game{
- width:min(94vw,430px);
- text-align:center;
+  width:100%;
+  max-width:500px;
+  padding:18px 15px 25px;
+  text-align:center;
 }
 
-.card{
- background:rgba(255,255,255,.1);
- padding:20px;
- border-radius:24px;
+h1{
+  margin:5px 0 4px;
+  font-size:32px;
+  line-height:1;
 }
 
-h1{margin:0 0 10px}
+.subtitle{
+  font-size:15px;
+  color:#65708b;
+  margin-bottom:12px;
+}
 
-.info{
- display:flex;
- justify-content:space-between;
- margin:15px 5px;
- font-weight:bold;
+.level{
+  font-size:24px;
+  font-weight:bold;
+  margin:12px 0;
+}
+
+.top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:12px;
+}
+
+.box{
+  background:#f2f5fa;
+  padding:10px 15px;
+  border-radius:15px;
+  font-weight:bold;
+}
+
+.lives{
+  font-size:25px;
+  letter-spacing:2px;
 }
 
 .board{
- display:grid;
- grid-template-columns:repeat(4,1fr);
- gap:7px;
- background:#1f2937;
- padding:10px;
- border-radius:15px;
+  width:min(94vw,430px);
+  aspect-ratio:1/1;
+  margin:auto;
+  border:6px solid #17213d;
+  border-radius:12px;
+  position:relative;
+  overflow:hidden;
+  background:#fff;
 }
 
-.cell{
- aspect-ratio:1;
- display:flex;
- align-items:center;
- justify-content:center;
+svg{
+  width:100%;
+  height:100%;
+  display:block;
 }
 
 .arrow{
- width:100%;
- height:100%;
- border:0;
- border-radius:10px;
- background:#f8fafc;
- color:#111827;
- font-size:34px;
- cursor:pointer;
- transition:.15s;
+  fill:none;
+  stroke:#17213d;
+  stroke-width:9;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  cursor:pointer;
+  transition:stroke .15s;
 }
 
-.arrow:active{
- transform:scale(.9);
+.arrow:hover{
+  stroke:#273c70;
 }
 
-.arrow.blocked{
- opacity:.45;
+.arrow-head{
+  fill:#17213d;
+  cursor:pointer;
 }
 
-#message{
- min-height:30px;
- margin:15px 0;
- font-weight:bold;
+.arrow.selected{
+  stroke:#119bea;
 }
 
-#restart{
- border:0;
- border-radius:12px;
- padding:12px 25px;
- font-weight:bold;
- font-size:16px;
- cursor:pointer;
+.arrow-head.selected{
+  fill:#119bea;
+}
+
+.fly{
+  transition:
+    transform .65s ease,
+    opacity .65s ease;
+}
+
+.message{
+  min-height:35px;
+  margin:14px 0;
+  font-size:17px;
+  font-weight:bold;
+}
+
+button{
+  border:0;
+  border-radius:14px;
+  padding:12px 22px;
+  font-size:16px;
+  font-weight:bold;
+  cursor:pointer;
+  background:#119bea;
+  color:white;
+  margin:4px;
+}
+
+button:active{
+  transform:scale(.94);
+}
+
+.hint{
+  background:#f2f5fa;
+  color:#17213d;
+}
+
+@media(max-width:360px){
+  h1{font-size:27px}
+  .level{font-size:21px}
+  .arrow{stroke-width:8}
 }
 </style>
 </head>
@@ -95,188 +153,588 @@ h1{margin:0 0 10px}
 <body>
 
 <div class="game">
-<div class="card">
 
-<h1>🏹 Arrow Puzzle</h1>
+<h1>Tap Away</h1>
+<div class="subtitle">Arrows Puzzle</div>
 
-<div class="info">
-<span>Level: <b id="level">1</b></span>
-<span>Score: <b id="score">0</b></span>
+<div class="level">
+Level <span id="level">1</span>
 </div>
 
-<div id="message">Clear all arrows!</div>
-
-<div class="board" id="board"></div>
-
-<br>
-
-<button id="restart">🔄 Restart</button>
-
+<div class="top">
+  <div class="box">↗ <span id="remaining">12</span></div>
+  <div class="lives" id="lives">❤️❤️❤️</div>
+  <div class="box">Normal</div>
 </div>
+
+<div class="board">
+<svg id="game" viewBox="0 0 400 400"></svg>
+</div>
+
+<div class="message" id="message">
+Tap an arrow to make it fly away!
+</div>
+
+<button onclick="restartGame()">🔄 Restart</button>
+<button class="hint" onclick="giveHint()">💡 Hint</button>
+
 </div>
 
 <script>
 
-const board = document.getElementById("board");
+/* =========================
+   GAME SETTINGS
+========================= */
+
+const svg = document.getElementById("game");
 const levelText = document.getElementById("level");
-const scoreText = document.getElementById("score");
+const remainingText = document.getElementById("remaining");
+const livesText = document.getElementById("lives");
 const message = document.getElementById("message");
 
 let level = 1;
-let score = 0;
+let lives = 3;
 let arrows = [];
+let locked = false;
 
-const directions = [
- {symbol:"⬆️", dx:0, dy:-1},
- {symbol:"➡️", dx:1, dy:0},
- {symbol:"⬇️", dx:0, dy:1},
- {symbol:"⬅️", dx:-1, dy:0}
-];
 
-function createLevel(){
+/* =========================
+   ARROW DATA
+========================= */
 
- board.innerHTML="";
- arrows=[];
+const DIR = {
 
- let count = Math.min(6 + level, 14);
+  right:{
+    dx:1,
+    dy:0
+  },
 
- for(let i=0;i<count;i++){
+  left:{
+    dx:-1,
+    dy:0
+  },
 
-   let dir = directions[Math.floor(Math.random()*4)];
+  down:{
+    dx:0,
+    dy:1
+  },
 
-   let arrow = {
-     id:i,
-     x:Math.floor(Math.random()*4),
-     y:Math.floor(Math.random()*4),
-     dir:dir,
-     removed:false
-   };
+  up:{
+    dx:0,
+    dy:-1
+  }
 
-   // Avoid same position
-   while(arrows.some(a => a.x===arrow.x && a.y===arrow.y)){
-     arrow.x=Math.floor(Math.random()*4);
-     arrow.y=Math.floor(Math.random()*4);
-   }
-
-   arrows.push(arrow);
- }
-
- drawBoard();
-}
-
-function drawBoard(){
-
- board.innerHTML="";
-
- for(let y=0;y<4;y++){
-
-   for(let x=0;x<4;x++){
-
-     let cell=document.createElement("div");
-     cell.className="cell";
-
-     let arrow=arrows.find(a =>
-       !a.removed && a.x===x && a.y===y
-     );
-
-     if(arrow){
-
-       let button=document.createElement("button");
-
-       button.className="arrow";
-       button.textContent=arrow.dir.symbol;
-
-       if(!canMove(arrow)){
-         button.classList.add("blocked");
-       }
-
-       button.onclick=()=>moveArrow(arrow);
-
-       cell.appendChild(button);
-     }
-
-     board.appendChild(cell);
-   }
- }
-}
-
-function canMove(arrow){
-
- let nx=arrow.x+arrow.dir.dx;
- let ny=arrow.y+arrow.dir.dy;
-
- // Outside board = arrow can leave
- if(nx<0 || nx>=4 || ny<0 || ny>=4){
-   return true;
- }
-
- // Another arrow is blocking
- let blocked=arrows.some(a =>
-   !a.removed &&
-   a.id!==arrow.id &&
-   a.x===nx &&
-   a.y===ny
- );
-
- return !blocked;
-}
-
-function moveArrow(arrow){
-
- if(arrow.removed) return;
-
- if(!canMove(arrow)){
-
-   message.textContent="🚫 Blocked! Move another arrow.";
-   return;
- }
-
- arrow.removed=true;
-
- score+=10;
- scoreText.textContent=score;
-
- message.textContent="✅ Arrow cleared!";
-
- drawBoard();
-
- checkLevel();
-}
-
-function checkLevel(){
-
- let remaining=arrows.filter(a=>!a.removed).length;
-
- if(remaining===0){
-
-   message.textContent="🎉 Level "+level+" Complete!";
-
-   setTimeout(()=>{
-
-     level++;
-     levelText.textContent=level;
-
-     message.textContent="🔥 Level "+level+"!";
-
-     createLevel();
-
-   },900);
- }
-}
-
-document.getElementById("restart").onclick=()=>{
-
- level=1;
- score=0;
-
- levelText.textContent=1;
- scoreText.textContent=0;
- message.textContent="Clear all arrows!";
-
- createLevel();
 };
 
-createLevel();
+
+/* =========================
+   LEVEL SHAPES
+========================= */
+
+/*
+  IMPORTANT:
+  Har level mein arrows ki
+  position aur direction change hoti hai.
+  Arrows ek doosre se connected nahi hain.
+*/
+
+const levels = [
+
+/* LEVEL 1 */
+
+[
+  {x:55,y:65,d:"right"},
+  {x:150,y:65,d:"down"},
+  {x:250,y:65,d:"left"},
+
+  {x:95,y:145,d:"down"},
+  {x:200,y:145,d:"right"},
+  {x:320,y:145,d:"down"},
+
+  {x:55,y:230,d:"right"},
+  {x:160,y:230,d:"up"},
+  {x:270,y:230,d:"left"},
+
+  {x:90,y:315,d:"up"},
+  {x:205,y:315,d:"right"},
+  {x:320,y:315,d:"up"}
+],
+
+
+/* LEVEL 2 */
+
+[
+  {x:55,y:55,d:"down"},
+  {x:155,y:55,d:"right"},
+  {x:275,y:55,d:"down"},
+  {x:345,y:80,d:"left"},
+
+  {x:70,y:145,d:"right"},
+  {x:185,y:145,d:"up"},
+  {x:285,y:150,d:"left"},
+
+  {x:55,y:245,d:"down"},
+  {x:155,y:235,d:"right"},
+  {x:270,y:240,d:"up"},
+
+  {x:110,y:330,d:"right"},
+  {x:225,y:330,d:"up"},
+  {x:335,y:325,d:"left"}
+],
+
+
+/* LEVEL 3 */
+
+[
+  {x:45,y:60,d:"right"},
+  {x:140,y:55,d:"down"},
+  {x:240,y:60,d:"left"},
+  {x:335,y:55,d:"down"},
+
+  {x:60,y:145,d:"down"},
+  {x:155,y:140,d:"right"},
+  {x:265,y:145,d:"up"},
+  {x:345,y:150,d:"left"},
+
+  {x:50,y:245,d:"right"},
+  {x:145,y:240,d:"down"},
+  {x:245,y:245,d:"left"},
+  {x:340,y:240,d:"up"},
+
+  {x:95,y:335,d:"up"},
+  {x:200,y:335,d:"right"},
+  {x:310,y:335,d:"left"}
+],
+
+
+/* LEVEL 4 */
+
+[
+  {x:55,y:50,d:"down"},
+  {x:145,y:50,d:"right"},
+  {x:245,y:50,d:"down"},
+  {x:335,y:50,d:"left"},
+
+  {x:55,y:140,d:"right"},
+  {x:155,y:140,d:"down"},
+  {x:250,y:140,d:"left"},
+  {x:340,y:140,d:"down"},
+
+  {x:55,y:240,d:"up"},
+  {x:150,y:240,d:"right"},
+  {x:250,y:240,d:"up"},
+  {x:340,y:240,d:"left"},
+
+  {x:90,y:335,d:"right"},
+  {x:200,y:335,d:"up"},
+  {x:310,y:335,d:"left"}
+]
+
+];
+
+
+/* =========================
+   CREATE ARROW
+========================= */
+
+function createArrow(data,index){
+
+  const g = document.createElementNS(
+    "http://www.w3.org/2000/svg",
+    "g"
+  );
+
+  g.dataset.id = index;
+
+  const line =
+    document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "line"
+    );
+
+  const head =
+    document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "polygon"
+    );
+
+
+  let x1=data.x;
+  let y1=data.y;
+
+  let x2=x1;
+  let y2=y1;
+
+
+  const length=65;
+
+
+  if(data.d==="right"){
+    x2=x1+length;
+    head.setAttribute(
+      "points",
+      `${x2},${y2} ${x2-20},${y2-12} ${x2-20},${y2+12}`
+    );
+  }
+
+
+  if(data.d==="left"){
+    x2=x1-length;
+    head.setAttribute(
+      "points",
+      `${x2},${y2} ${x2+20},${y2-12} ${x2+20},${y2+12}`
+    );
+  }
+
+
+  if(data.d==="down"){
+    y2=y1+length;
+    head.setAttribute(
+      "points",
+      `${x2},${y2} ${x2-12},${y2-20} ${x2+12},${y2-20}`
+    );
+  }
+
+
+  if(data.d==="up"){
+    y2=y1-length;
+    head.setAttribute(
+      "points",
+      `${x2},${y2} ${x2-12},${y2+20} ${x2+12},${y2+20}`
+    );
+  }
+
+
+  line.setAttribute("x1",x1);
+  line.setAttribute("y1",y1);
+  line.setAttribute("x2",x2);
+  line.setAttribute("y2",y2);
+
+  line.classList.add("arrow");
+  head.classList.add("arrow-head");
+
+
+  g.appendChild(line);
+  g.appendChild(head);
+
+
+  g.addEventListener("click",function(){
+
+    tapArrow(data,g);
+
+  });
+
+
+  return g;
+}
+
+
+/* =========================
+   START LEVEL
+========================= */
+
+function startLevel(){
+
+  locked=false;
+
+  svg.innerHTML="";
+
+  const pattern =
+    levels[(level-1)%levels.length];
+
+  arrows =
+    pattern.map((a,i)=>({
+
+      ...a,
+
+      id:i,
+
+      removed:false
+
+    }));
+
+
+  levelText.textContent=level;
+
+  remainingText.textContent=arrows.length;
+
+  livesText.textContent=
+    "❤️".repeat(lives)+
+    "🖤".repeat(3-lives);
+
+  message.textContent=
+    "Tap an arrow to make it fly away!";
+
+
+  arrows.forEach((arrow,index)=>{
+
+    const visual =
+      createArrow(arrow,index);
+
+    arrow.element=visual;
+
+    svg.appendChild(visual);
+
+  });
+
+}
+
+
+/* =========================
+   CHECK BLOCK
+========================= */
+
+function isBlocked(arrow){
+
+  /*
+    Arrow ke saamne koi doosra
+    arrow hai ya nahi.
+  */
+
+  for(const other of arrows){
+
+    if(other.removed) continue;
+
+    if(other.id===arrow.id) continue;
+
+
+    if(arrow.d==="right"){
+
+      if(
+        Math.abs(other.y-arrow.y)<18 &&
+        other.x>arrow.x &&
+        other.x<arrow.x+100
+      ){
+        return true;
+      }
+
+    }
+
+
+    if(arrow.d==="left"){
+
+      if(
+        Math.abs(other.y-arrow.y)<18 &&
+        other.x<arrow.x &&
+        other.x>arrow.x-100
+      ){
+        return true;
+      }
+
+    }
+
+
+    if(arrow.d==="down"){
+
+      if(
+        Math.abs(other.x-arrow.x)<18 &&
+        other.y>arrow.y &&
+        other.y<arrow.y+100
+      ){
+        return true;
+      }
+
+    }
+
+
+    if(arrow.d==="up"){
+
+      if(
+        Math.abs(other.x-arrow.x)<18 &&
+        other.y<arrow.y &&
+        other.y>arrow.y-100
+      ){
+        return true;
+      }
+
+    }
+
+  }
+
+  return false;
+}
+
+
+/* =========================
+   TAP ARROW
+========================= */
+
+function tapArrow(arrow,element){
+
+  if(locked || arrow.removed) return;
+
+
+  if(isBlocked(arrow)){
+
+    lives--;
+
+    livesText.textContent=
+      "❤️".repeat(Math.max(0,lives))+
+      "🖤".repeat(3-lives);
+
+    message.textContent=
+      "🚫 Blocked! Try another arrow.";
+
+    element.querySelectorAll(
+      ".arrow,.arrow-head"
+    ).forEach(e=>{
+
+      e.classList.add("selected");
+
+      setTimeout(()=>{
+
+        e.classList.remove("selected");
+
+      },250);
+
+    });
+
+
+    if(lives<=0){
+
+      locked=true;
+
+      message.textContent=
+        "💔 Game Over! Press Restart.";
+
+    }
+
+    return;
+
+  }
+
+
+  locked=true;
+
+  message.textContent=
+    "✨ Arrow flying away!";
+
+
+  let moveX=0;
+  let moveY=0;
+
+
+  if(arrow.d==="right") moveX=500;
+  if(arrow.d==="left") moveX=-500;
+  if(arrow.d==="down") moveY=500;
+  if(arrow.d==="up") moveY=-500;
+
+
+  element.classList.add("fly");
+
+  element.style.transform=
+    `translate(${moveX}px,${moveY}px)`;
+
+  element.style.opacity="0";
+
+
+  setTimeout(()=>{
+
+    arrow.removed=true;
+
+    remainingText.textContent=
+      arrows.filter(a=>!a.removed).length;
+
+
+    if(
+      arrows.every(a=>a.removed)
+    ){
+
+      message.textContent=
+        "🎉 Level "+level+" Complete!";
+
+      setTimeout(()=>{
+
+        level++;
+
+        /*
+          Next level mein
+          naya shape/layout load hoga.
+        */
+
+        startLevel();
+
+      },900);
+
+    }
+    else{
+
+      locked=false;
+
+    }
+
+  },650);
+
+}
+
+
+/* =========================
+   HINT
+========================= */
+
+function giveHint(){
+
+  if(locked) return;
+
+
+  const free =
+    arrows.find(
+      a=>!a.removed && !isBlocked(a)
+    );
+
+
+  if(!free){
+
+    message.textContent=
+      "No free arrow found!";
+
+    return;
+
+  }
+
+
+  const element=free.element;
+
+
+  element.querySelectorAll(
+    ".arrow,.arrow-head"
+  ).forEach(e=>{
+
+    e.classList.add("selected");
+
+    setTimeout(()=>{
+
+      e.classList.remove("selected");
+
+    },1000);
+
+  });
+
+
+  message.textContent=
+    "💡 Try the highlighted arrow.";
+
+}
+
+
+/* =========================
+   RESTART
+========================= */
+
+function restartGame(){
+
+  level=1;
+
+  lives=3;
+
+  startLevel();
+
+}
+
+
+/* START */
+
+startLevel();
 
 </script>
 
