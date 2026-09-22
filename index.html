@@ -4,56 +4,281 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Arrow Puzzle</title>
+
 <style>
-*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:linear-gradient(135deg,#111827,#312e81);color:white;min-height:100vh;display:flex;justify-content:center;align-items:center}
-.game{width:min(94vw,430px);text-align:center}.card{background:rgba(255,255,255,.1);padding:22px;border-radius:24px;box-shadow:0 15px 40px rgba(0,0,0,.3);backdrop-filter:blur(8px)}
-h1{margin:0 0 8px;font-size:34px}.info{display:flex;justify-content:space-between;margin:14px 0;font-weight:bold}
-#target{font-size:24px;margin:15px 0}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0}
-button.arrow{height:90px;border:0;border-radius:18px;background:white;font-size:42px;cursor:pointer;box-shadow:0 6px 12px rgba(0,0,0,.2);transition:.12s}
-button.arrow:active{transform:scale(.92)}button.arrow.correct{background:#86efac}button.arrow.wrong{background:#fca5a5}
-#message{height:28px;font-weight:bold}#restart{border:0;border-radius:12px;padding:12px 22px;font-size:16px;font-weight:bold;cursor:pointer}
-small{opacity:.75}
+*{box-sizing:border-box}
+
+body{
+ margin:0;
+ min-height:100vh;
+ display:flex;
+ justify-content:center;
+ align-items:center;
+ background:linear-gradient(135deg,#111827,#312e81);
+ font-family:Arial,sans-serif;
+ color:white;
+}
+
+.game{
+ width:min(94vw,430px);
+ text-align:center;
+}
+
+.card{
+ background:rgba(255,255,255,.1);
+ padding:20px;
+ border-radius:24px;
+}
+
+h1{margin:0 0 10px}
+
+.info{
+ display:flex;
+ justify-content:space-between;
+ margin:15px 5px;
+ font-weight:bold;
+}
+
+.board{
+ display:grid;
+ grid-template-columns:repeat(4,1fr);
+ gap:7px;
+ background:#1f2937;
+ padding:10px;
+ border-radius:15px;
+}
+
+.cell{
+ aspect-ratio:1;
+ display:flex;
+ align-items:center;
+ justify-content:center;
+}
+
+.arrow{
+ width:100%;
+ height:100%;
+ border:0;
+ border-radius:10px;
+ background:#f8fafc;
+ color:#111827;
+ font-size:34px;
+ cursor:pointer;
+ transition:.15s;
+}
+
+.arrow:active{
+ transform:scale(.9);
+}
+
+.arrow.blocked{
+ opacity:.45;
+}
+
+#message{
+ min-height:30px;
+ margin:15px 0;
+ font-weight:bold;
+}
+
+#restart{
+ border:0;
+ border-radius:12px;
+ padding:12px 25px;
+ font-weight:bold;
+ font-size:16px;
+ cursor:pointer;
+}
 </style>
 </head>
-<body>
-<div class="game"><div class="card">
-<h1>🎯 Arrow Puzzle</h1><small>Tap the arrow that matches the target!</small>
-<div class="info"><span>Level: <b id="level">1</b></span><span>Score: <b id="score">0</b></span></div>
-<div id="target">Target: ➡️</div>
-<div class="grid" id="grid"></div>
-<div id="message"></div>
-<br><button id="restart">Restart Game</button>
-</div></div>
-<script>
-const arrows=["⬆️","➡️","⬇️","⬅️"];
-let level=1,score=0,target="";
-const grid=document.getElementById("grid"),targetEl=document.getElementById("target"),levelEl=document.getElementById("level"),scoreEl=document.getElementById("score"),msg=document.getElementById("message");
 
-function newRound(){
- target=arrows[Math.floor(Math.random()*arrows.length)];
- targetEl.textContent="Target: "+target;
- grid.innerHTML="";
- let correct=Math.floor(Math.random()*9);
- for(let i=0;i<9;i++){
-   let b=document.createElement("button"); b.className="arrow";
-   b.textContent=i===correct?target:arrows[Math.floor(Math.random()*arrows.length)];
-   b.onclick=()=>choose(b);
-   grid.appendChild(b);
+<body>
+
+<div class="game">
+<div class="card">
+
+<h1>🏹 Arrow Puzzle</h1>
+
+<div class="info">
+<span>Level: <b id="level">1</b></span>
+<span>Score: <b id="score">0</b></span>
+</div>
+
+<div id="message">Clear all arrows!</div>
+
+<div class="board" id="board"></div>
+
+<br>
+
+<button id="restart">🔄 Restart</button>
+
+</div>
+</div>
+
+<script>
+
+const board = document.getElementById("board");
+const levelText = document.getElementById("level");
+const scoreText = document.getElementById("score");
+const message = document.getElementById("message");
+
+let level = 1;
+let score = 0;
+let arrows = [];
+
+const directions = [
+ {symbol:"⬆️", dx:0, dy:-1},
+ {symbol:"➡️", dx:1, dy:0},
+ {symbol:"⬇️", dx:0, dy:1},
+ {symbol:"⬅️", dx:-1, dy:0}
+];
+
+function createLevel(){
+
+ board.innerHTML="";
+ arrows=[];
+
+ let count = Math.min(6 + level, 14);
+
+ for(let i=0;i<count;i++){
+
+   let dir = directions[Math.floor(Math.random()*4)];
+
+   let arrow = {
+     id:i,
+     x:Math.floor(Math.random()*4),
+     y:Math.floor(Math.random()*4),
+     dir:dir,
+     removed:false
+   };
+
+   // Avoid same position
+   while(arrows.some(a => a.x===arrow.x && a.y===arrow.y)){
+     arrow.x=Math.floor(Math.random()*4);
+     arrow.y=Math.floor(Math.random()*4);
+   }
+
+   arrows.push(arrow);
+ }
+
+ drawBoard();
+}
+
+function drawBoard(){
+
+ board.innerHTML="";
+
+ for(let y=0;y<4;y++){
+
+   for(let x=0;x<4;x++){
+
+     let cell=document.createElement("div");
+     cell.className="cell";
+
+     let arrow=arrows.find(a =>
+       !a.removed && a.x===x && a.y===y
+     );
+
+     if(arrow){
+
+       let button=document.createElement("button");
+
+       button.className="arrow";
+       button.textContent=arrow.dir.symbol;
+
+       if(!canMove(arrow)){
+         button.classList.add("blocked");
+       }
+
+       button.onclick=()=>moveArrow(arrow);
+
+       cell.appendChild(button);
+     }
+
+     board.appendChild(cell);
+   }
  }
 }
-function choose(b){
- if(b.textContent===target){
-   b.classList.add("correct"); score+=10; scoreEl.textContent=score;
-   msg.textContent="✅ Correct!";
-   level=Math.floor(score/50)+1; levelEl.textContent=level;
-   setTimeout(newRound,350);
- }else{
-   b.classList.add("wrong"); msg.textContent="❌ Try again!";
-   setTimeout(()=>b.classList.remove("wrong"),300);
+
+function canMove(arrow){
+
+ let nx=arrow.x+arrow.dir.dx;
+ let ny=arrow.y+arrow.dir.dy;
+
+ // Outside board = arrow can leave
+ if(nx<0 || nx>=4 || ny<0 || ny>=4){
+   return true;
+ }
+
+ // Another arrow is blocking
+ let blocked=arrows.some(a =>
+   !a.removed &&
+   a.id!==arrow.id &&
+   a.x===nx &&
+   a.y===ny
+ );
+
+ return !blocked;
+}
+
+function moveArrow(arrow){
+
+ if(arrow.removed) return;
+
+ if(!canMove(arrow)){
+
+   message.textContent="🚫 Blocked! Move another arrow.";
+   return;
+ }
+
+ arrow.removed=true;
+
+ score+=10;
+ scoreText.textContent=score;
+
+ message.textContent="✅ Arrow cleared!";
+
+ drawBoard();
+
+ checkLevel();
+}
+
+function checkLevel(){
+
+ let remaining=arrows.filter(a=>!a.removed).length;
+
+ if(remaining===0){
+
+   message.textContent="🎉 Level "+level+" Complete!";
+
+   setTimeout(()=>{
+
+     level++;
+     levelText.textContent=level;
+
+     message.textContent="🔥 Level "+level+"!";
+
+     createLevel();
+
+   },900);
  }
 }
-document.getElementById("restart").onclick=()=>{level=1;score=0;levelEl.textContent=1;scoreEl.textContent=0;msg.textContent="";newRound()};
-newRound();
+
+document.getElementById("restart").onclick=()=>{
+
+ level=1;
+ score=0;
+
+ levelText.textContent=1;
+ scoreText.textContent=0;
+ message.textContent="Clear all arrows!";
+
+ createLevel();
+};
+
+createLevel();
+
 </script>
+
 </body>
 </html>
